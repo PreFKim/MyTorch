@@ -1,1 +1,31 @@
 
+from ..parameter import Param
+
+class Linear:
+    def __init__(self,in_channels,out_channels,bias=True):
+        self.w = [[Param(1) for j in range(in_channels) ] for i in range(out_channels)] # out_channels, in_channels
+        
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        self.bias = bias
+
+        if self.bias:
+            self.b = [Param(1) for i in range(out_channels)] # out_channels
+
+    def __call__(self,x):
+
+        ret = []
+        for i in range(self.out_channels):
+            sum = x[0] * self.w[i][0]
+            for j in range(1,self.in_channels):
+                sum = sum + self.w[i][j] * x[j]
+            ret.append(sum)
+
+        if self.bias:
+            for i in range(self.out_channels):
+                ret[i] = ret[i] + self.b[i]
+        
+        return ret
+    
