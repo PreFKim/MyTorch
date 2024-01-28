@@ -1,7 +1,7 @@
-
 from ..parameter import Param
+from .module import Module
 
-class Linear:
+class Linear(Module):
     def __init__(self,in_channels,out_channels,bias=True):
         self.w = [[Param(1) for j in range(in_channels) ] for i in range(out_channels)] # out_channels, in_channels
         
@@ -14,7 +14,7 @@ class Linear:
         if self.bias:
             self.b = [Param(1) for i in range(out_channels)] # out_channels
 
-    def __call__(self,x):
+    def foward(self,x):
 
         ret = []
         for i in range(self.out_channels):
@@ -29,3 +29,5 @@ class Linear:
         
         return ret
     
+
+
