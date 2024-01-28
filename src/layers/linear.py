@@ -1,20 +1,28 @@
 from ..parameter import Param
 from .module import Module
+import numpy as np
 
 class Linear(Module):
     def __init__(self,in_channels,out_channels,bias=True):
 
-        self.w = [[Param(1) for j in range(in_channels) ] for i in range(out_channels)] # out_channels, in_channels
-        
-
         self.in_channels = in_channels
         self.out_channels = out_channels
-
         self.bias = bias
+
+
+        self.w = [[Param(1) for j in range(self.in_channels) ] for i in range(self.out_channels)] # out_channels, in_channels
+        
+        for i in range(self.out_channels): # He Initialize
+            for j in range(self.in_channels):
+                self.w[i][j].data = np.random.uniform(-np.sqrt(6/in_channels),np.sqrt(6/in_channels))
 
         if self.bias:
             self.b = [Param(1) for i in range(out_channels)] # out_channels
 
+            for i in range(self.out_channels): # He Initialize
+                self.b[i].data = np.random.uniform(-np.sqrt(1/in_channels),np.sqrt(1/in_channels))
+        
+        
     def forward(self,x):
 
         ret = []
