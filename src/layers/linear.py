@@ -29,5 +29,16 @@ class Linear(Module):
         
         return ret
     
+    def parameters(self):
+        ret = []
+        for i in range(self.out_channels):
+            for j in range(self.in_channels):
+                ret.append(self.w[i][j])
+
+        if self.bias:
+            for i in range(self.out_channels):
+                ret.append(self.b[i])
+        return ret
+    
 
 
