@@ -184,4 +184,9 @@ class Param:
             p.print_node(depth+1)
         print(s+')')
 
+    def backward(self,grad=1):
+        for i in range(len(self.privious_node)):
+            self.privious_node[i].backward_grad += self.foward_grad[i]*grad
+            self.privious_node[i].backward(self.foward_grad[i]*grad)
+
         
