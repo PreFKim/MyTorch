@@ -10,10 +10,8 @@ class Module:
         ret = []
         for name, attribute in self.__dict__.items():
             if isinstance(attribute, Module):
-                params = attribute.parameters()
-                ret += params
+                ret.extend(attribute.parameters())
             elif isinstance(attribute, Param) :
-                ret.append(params)
-
+                ret.append(attribute)
 
         return ret
