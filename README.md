@@ -1,4 +1,4 @@
-# MyTorch (2023-08-21 ~ 2023-10-02)
+# MyTorch (2024-01-23 ~ 2024-01-28)
 
 **[Velog : [딥러닝] 경사하강법 구현부터 학습까지(1)](https://velog.io/@pre_f_86/%EB%94%A5%EB%9F%AC%EB%8B%9D-%EA%B2%BD%EC%82%AC%ED%95%98%EA%B0%95%EB%B2%95-%EA%B5%AC%ED%98%84%EB%B6%80%ED%84%B0-%ED%95%99%EC%8A%B5%EA%B9%8C%EC%A7%80-1)**
 
