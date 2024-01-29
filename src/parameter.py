@@ -18,7 +18,7 @@ class Param:
         node.privious_node.append(self)
         node.foward_grad.append(1) # x+a (derivative) -> 1 | x = self
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
             node.data = self.data + other.data
             node.privious_node.append(other)
             node.foward_grad.append(1) # a+x (derivative) -> 1 | x = other 
@@ -35,7 +35,7 @@ class Param:
         node.privious_node.append(self)
         node.foward_grad.append(1) # x-a (derivative) -> 1 | x = self
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
             node.data = self.data - other.data
             node.privious_node.append(other)
             node.foward_grad.append(-1) # a - x (derivative) -> -1 | x = other
@@ -49,7 +49,7 @@ class Param:
         node.privious_node.append(self)
         node.foward_grad.append(-1) # a - x (derivative) -> -1 | x = self
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
             node.data = other.data - self.data 
             node.privious_node.append(other)
             node.foward_grad.append(1) # x - a (derivative) -> 1 | x = other
@@ -62,7 +62,7 @@ class Param:
         node = Param(type=1)
         node.privious_node.append(self)
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
             node.data = self.data * other.data
 
             node.foward_grad.append(other.data) # x*a (derivative) -> a | x = self
@@ -82,7 +82,7 @@ class Param:
         node = Param(type=1)
         node.privious_node.append(self)
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
             node.data = self.data / other.data
 
             node.foward_grad.append(1/other.data) # x/a = 1/a * x (derivative) -> 1/a | x = self
@@ -98,7 +98,7 @@ class Param:
         node = Param(type=1)
         node.privious_node.append(self)
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
             node.data = other.data / self.data
 
             node.foward_grad.append(other.data / (self.data ** 2)) # a/x  = ax^(-1) (derivative)-> -ax^(-2) | x = self
@@ -114,7 +114,7 @@ class Param:
         node = Param(type=1)
         node.privious_node.append(self)
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
             node.data = self.data ** other.data
 
             node.foward_grad.append(other.data * self.data ** (other.data-1)) # x**a (derivative) -> a* (x**(a-1)) | x = self
@@ -132,7 +132,7 @@ class Param:
         node = Param(type=1)
         node.privious_node.append(self)
 
-        if (type(node)==type(other)):
+        if (isinstance(other, Param)):
 
             node.data = other.data ** self.data
             
@@ -149,7 +149,7 @@ class Param:
     def __floordiv__(self,other):
         node = Param(type=1,requires_grad=False)
         
-        if (type(self)==type(other)):
+        if (isinstance(other, Param)):
             node.data = self.data // other.data
         else :
             node.data = self.data // other
@@ -158,7 +158,7 @@ class Param:
     def __mod__(self,other):
         node = Param(type=1,requires_grad=False)
 
-        if (type(self)==type(other)):
+        if (isinstance(other, Param)):
             node.data = self.data % other.data
         else :
             node.data = self.data % other
@@ -174,6 +174,11 @@ class Param:
             node.data = -self.data
             node.foward_grad.append(-1)
         return node
+    def __neg__(self):
+        self.data = -self.data
+        for i in range(len(self.foward_grad)):
+            self.foward_grad[i] = -self.foward_grad[i]
+        return self
 
     def print_node(self,depth=0):
         s = ""
