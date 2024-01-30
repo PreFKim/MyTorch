@@ -1,4 +1,4 @@
-# MyTorch (2024-01-23 ~ 2024-01-28)
+# MyTorch (2024-01-23 ~ 2024-01-30)
 
 **[Velog : [딥러닝] 경사하강법 구현부터 학습까지(1)](https://velog.io/@pre_f_86/%EB%94%A5%EB%9F%AC%EB%8B%9D-%EA%B2%BD%EC%82%AC%ED%95%98%EA%B0%95%EB%B2%95-%EA%B5%AC%ED%98%84%EB%B6%80%ED%84%B0-%ED%95%99%EC%8A%B5%EA%B9%8C%EC%A7%80-1)**
 
@@ -26,14 +26,13 @@ import src as my
 
 ```python
 def relu(x):
-    ret = []
-    for p in x:
-        if p.data>0 : ret.append(p)
-        else : ret.append(my.Param(0))
-    return ret
+    mul = my.ones(x.shape)
+    mul[x<=0] = 0
+    x = x*mul
+    return x
 
 
-class model(my.layers.Module):
+class mymodel(my.layers.Module):
     def __init__(self):
         self.l1 = my.layers.Linear(2,4)
         self.l2 = my.layers.Linear(4,4)
@@ -54,18 +53,17 @@ class model(my.layers.Module):
 4. Optimizer와 학습 코드를 작성한다.
 
 ```python
+x = my.tensor([list(range(100)),list(range(100))]).reshape(-1,2)
+y = my.tensor([list(range(100))]).reshape(-1,1)
 model = mymodel()
-optimizers = my.optimizers.Adam(params=model.parameters(),lr=1e-3)
-
+optim = my.optimizers.Adam(params=model.parameters(),lr=1e-3)
+# y=x 함수 학습
 for i in range(100):
-    for j in range(100):
-
-        x = [j,j]
-        out = model(x)
-        loss = (out[0]-j)**2
-        loss.backward()
-        optimizers.update()
-        optimizers.zero_grad()
+    out = model(x)
+    loss = ((out-y)**2).mean()
+    loss.backward()
+    optim.update()
+    optim.zero_grad()
     if (i%10==0):
         print(loss)  
 print(loss)
@@ -93,3 +91,7 @@ model([1000,1000])
             │
             └─optimizers    # Optimizer 코드
                 ...
+
+## 문제점
+
+1. Numpy의 Dtype이 Object 타입으로 Param 클래스를 받기 때문에(동적할당) 실제 연산시 속도가 매우 느려짐
