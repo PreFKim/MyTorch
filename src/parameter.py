@@ -174,11 +174,48 @@ class Param:
             node.data = -self.data
             node.foward_grad.append(-1)
         return node
+    
     def __neg__(self):
         self.data = -self.data
         for i in range(len(self.foward_grad)):
             self.foward_grad[i] = -self.foward_grad[i]
         return self
+    
+    def __lt__(self,other): 
+        if (isinstance(other, Param)):
+            return self.data < other.data
+        else :
+            return self.data < other
+        
+    def __le__(self,other): 
+        if (isinstance(other, Param)):
+            return self.data <= other.data
+        else :
+            return self.data <= other
+        
+    def __gt__(self,other): 
+        if (isinstance(other, Param)):
+            return self.data > other.data
+        else :
+            return self.data > other
+        
+    def __ge__(self,other): 
+        if (isinstance(other, Param)):
+            return self.data >= other.data
+        else :
+            return self.data >= other
+    
+    def __eq__(self,other):
+        if (isinstance(other, Param)):
+            return self.data == other.data
+        else :
+            return self.data == other
+        
+    def __ne__(self,other):
+        if (isinstance(other, Param)):
+            return self.data != other.data
+        else :
+            return self.data != other
 
     def print_node(self,depth=0):
         s = ""
