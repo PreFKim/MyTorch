@@ -22,8 +22,6 @@ import src as my
 
 3. 원하는 구조에 맞게 모델을 수정한다.(PyTorch와 형식은 비슷합니다.)
 
-    **※ 입출력 데이터는 list 형식을 따릅니다.**
-
 ```python
 def relu(x):
     mul = my.ones(x.shape)
