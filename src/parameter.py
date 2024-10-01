@@ -1,234 +1,190 @@
 import numpy as np
+from .gradients.basic import *
+from .gradients.index import Get, Set
 
 class Param:
-    def __init__(self,data=0.0,type=0.0,requires_grad=True):
-        self.data = data # 가중치 혹은 결과 값
-        self.requires_grad = requires_grad
-        self.backward_grad = 0.0 # Backpropagtion된 Grad
-        self.privious_node = [] # 이전 노드들
-        self.foward_grad = [] # 이전 노드들에 대한 foward 가중치
-        self.type = type # 0이면 가중치 1이면 노드
-
-
-    def __repr__(self):
-        return f"({self.data}, type:{'Node' if self.type else 'Param'}, foward_grad:{self.foward_grad}, backward_grad:{self.backward_grad} requrired_grad:{self.requires_grad})"
-    
-    def __add__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-        node.foward_grad.append(1) # x+a (derivative) -> 1 | x = self
-
-        if (isinstance(other, Param)):
-            node.data = self.data + other.data
-            node.privious_node.append(other)
-            node.foward_grad.append(1) # a+x (derivative) -> 1 | x = other 
+    def __init__(self, data=0.0, requires_grad=False):
+        if isinstance(data, np.ndarray):
+            self.data = data 
+        elif isinstance(data, (int, float, complex, list, tuple)) :
+            self.data = np.array(data)
         else :
-            node.data = self.data + other
+            raise "Not supported data type"
         
+        self.grad = None
+        self.grad_fn = None
+        self.requires_grad = requires_grad
+        self.is_leaf = True
+        self.shape = self.data.shape
+        
+    def __repr__(self):
+        return f"Data:{self.data}"+ (f", requrired_grad:{self.requires_grad}" if self.requires_grad else "")
+    
+    def __len__(self):
+        return self.shape[0]
+    
+    def backward(self, grad=1):
+
+        if self.requires_grad:
+            if not isinstance(grad, np.ndarray) :
+                grad = np.ones_like(self.data) * grad
+            
+            if grad.shape != self.shape:
+                # Un broadcasting
+                ln_grad = len(grad.shape)
+                ln_self = len(self.shape)
+                
+                grad = grad.sum(tuple(range(ln_grad-ln_self)))
+                
+                dims = []
+                for i in range(ln_self):
+                    if self.shape[i]==1 and grad.shape[i]:
+                        dims.append(i)
+                grad = grad.sum(tuple(dims), keepdims=True)
+
+            if self.grad_fn is not None:                
+                calc_grads = self.grad_fn.backward(grad)
+
+                if not isinstance(calc_grads, (tuple, list)):
+                    calc_grads = [calc_grads]
+
+                grad_idx = 0
+                for i in range(len(self.grad_fn)):
+                    prev_node = self.grad_fn.saved_tensors[i]
+                    if isinstance(prev_node, Param):
+                        prev_node.backward(calc_grads[grad_idx])
+                        grad_idx += 1
+                
+            elif self.is_leaf:
+                self.grad = self.grad + grad if self.grad is not None else grad
+
+    def operation(self, op, *inputs):
+        requires_grad = False
+        inputs = list(inputs)
+        for i in range(len(inputs)):
+            inputs[i] = inputs[i] if isinstance(inputs[i], Param) else Param(inputs[i])
+            requires_grad = requires_grad or inputs[i].requires_grad
+
+        node = Param(op.forward(*inputs), requires_grad=requires_grad)
+        node.is_leaf = False
+
+        if requires_grad:
+            node.grad_fn = op()
+            node.grad_fn.saved_for_backward(*inputs)
+
         return node
     
-    def __radd__(self,other):
+    def __getitem__(self, idx):
+        node = Param(Get.forward(self, idx), requires_grad=self.requires_grad)
+        node.is_leaf = False
+        if self.requires_grad:
+            node.grad_fn = Get()
+            node.grad_fn.saved_for_backward(self, idx)
+        return node
+
+    def __setitem__(self, idx, value):
+        
+        if self.is_leaf and self.requires_grad:
+            raise "IDK, But Pytorch denied this condition"
+        
+        value = value if isinstance(value, Param) else Param(value)
+
+        self.data = Set.forward(self, value, idx)
+        self.requires_grad=self.requires_grad or value.requires_grad
+        
+        if self.requires_grad:
+            self.grad_fn = Set(self.grad_fn)
+            self.grad_fn.saved_for_backward(self, value, idx)
+
+    def __add__(self, other):
+        return self.operation(Add, self, other)
+    
+    def __radd__(self, other):
         return self.__add__(other)
     
-    def __sub__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-        node.foward_grad.append(1) # x-a (derivative) -> 1 | x = self
-
-        if (isinstance(other, Param)):
-            node.data = self.data - other.data
-            node.privious_node.append(other)
-            node.foward_grad.append(-1) # a - x (derivative) -> -1 | x = other
-        else :
-            node.data = self.data - other
-        
-        return node
+    def __sub__(self, other):
+        return self.operation(Sub, self, other)
     
-    def __rsub__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-        node.foward_grad.append(-1) # a - x (derivative) -> -1 | x = self
+    def __rsub__(self, other):
+        return self.operation(Sub, other, self)
 
-        if (isinstance(other, Param)):
-            node.data = other.data - self.data 
-            node.privious_node.append(other)
-            node.foward_grad.append(1) # x - a (derivative) -> 1 | x = other
-        else :
-            node.data = other - self.data
-        return node
-
+    def __mul__(self, other):
+        return self.operation(Mul, self, other)
     
-    def __mul__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-
-        if (isinstance(other, Param)):
-            node.data = self.data * other.data
-
-            node.foward_grad.append(other.data) # x*a (derivative) -> a | x = self
-
-            node.privious_node.append(other)
-            node.foward_grad.append(self.data) # a*x (derivative) -> a | x = other
-        else :
-            node.foward_grad.append(other) # x*a (derivative) -> a | x = self
-            node.data = self.data * other
-        return node
-    
-    def __rmul__(self,other):
+    def __rmul__(self, other):
         return self.__mul__(other)
     
     
-    def __truediv__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-
-        if (isinstance(other, Param)):
-            node.data = self.data / other.data
-
-            node.foward_grad.append(1/other.data) # x/a = 1/a * x (derivative) -> 1/a | x = self
-
-            node.privious_node.append(other)
-            node.foward_grad.append( self.data / (other.data ** 2)) # a/x  = ax^(-1) (derivative)-> -ax^(-2) | x = other
-        else :
-            node.foward_grad.append(1/other) # x/a = 1/a * x (derivative) -> 1/a | x = self
-            node.data = self.data / other
-        return node
+    def __truediv__(self, other):
+        return self.operation(Div, self, other)
     
-    def __rtruediv__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-
-        if (isinstance(other, Param)):
-            node.data = other.data / self.data
-
-            node.foward_grad.append(other.data / (self.data ** 2)) # a/x  = ax^(-1) (derivative)-> -ax^(-2) | x = self
-
-            node.privious_node.append(other)
-            node.foward_grad.append( 1 / self.data ) # x/a = 1/a * x (derivative) -> 1/a | x = other
-        else :
-            node.foward_grad.append(other / (self.data ** 2)) # a/x  = ax^(-1) (derivative)-> -ax^(-2) | x = self
-            node.data = other / self.data
-        return node
+    def __rtruediv__(self, other):
+        return self.operation(Div, other, self)
     
-    def __pow__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-
-        if (isinstance(other, Param)):
-            node.data = self.data ** other.data
-
-            node.foward_grad.append(other.data * self.data ** (other.data-1)) # x**a (derivative) -> a* (x**(a-1)) | x = self
-
-
-            node.privious_node.append(other)
-            node.foward_grad.append(np.log(self.data)*self.data ** other.data) # a**x (derivative) -> ln(a)* (a**x) | x = other
-        else :
-            node.foward_grad.append(other * self.data ** (other-1)) # x**a (derivative) -> a*(x**(a-1)) | x = self
-            node.data = self.data ** other
-
-        return node
+    def __rfloordiv__(self, other):
+        return self.operation(FloorDiv, self, other)
     
-    def __rpow__(self,other):
-        node = Param(type=1)
-        node.privious_node.append(self)
-
-        if (isinstance(other, Param)):
-
-            node.data = other.data ** self.data
-            
-            node.foward_grad.append(np.log(other.data)*other.data ** self.data) # a**x (derivative) -> ln(a)* (a**x) | x = self
-
-            node.privious_node.append(other)
-            node.foward_grad.append(self.data * other.data ** (self.data-1)) # x**a (derivative) -> a*(x**(a-1)) | x = other
-        else :
-            node.foward_grad.append(np.log(other)*other ** self.data) # a**x (derivative) -> ln(a)* (a**x) | x = self
-            node.data = other ** self.data
-
-        return node
+    def __rfloordiv__(self, other):
+        return self.operation(FloorDiv, other, self)
     
-    def __floordiv__(self,other):
-        node = Param(type=1,requires_grad=False)
-        
-        if (isinstance(other, Param)):
-            node.data = self.data // other.data
-        else :
-            node.data = self.data // other
-        return node
+    def __pow__(self, other):
+        return self.operation(Pow, self, other)
     
-    def __mod__(self,other):
-        node = Param(type=1,requires_grad=False)
-
-        if (isinstance(other, Param)):
-            node.data = self.data % other.data
-        else :
-            node.data = self.data % other
-        return node
+    def __rpow__(self, other):
+        return self.operation(Pow, other, self)
+    
+    def __mod__(self, other):
+        return self.operation(Mod, self, other)
+    
+    def __rmod__(self, other):
+        return self.operation(Mod, other, self)
     
     def __abs__(self):
-        node = Param(type=1)
-        node.privious_node.append(self)
-        if (self.data>=0):
-            node.data = self.data
-            node.foward_grad.append(1)
-        else:
-            node.data = -self.data
-            node.foward_grad.append(-1)
-        return node
+        return self.operation(Abs, self)
     
     def __neg__(self):
-        self.data = -self.data
-        for i in range(len(self.foward_grad)):
-            self.foward_grad[i] = -self.foward_grad[i]
-        return self
+        return self.operation(Neg, self)
     
-    def __lt__(self,other): 
+    def __matmul__(self, other):
+        return self.operation(MatMul, self, other)
+    
+    def __rmatmul__(self, other):
+        return self.operation(MatMul, other, self)
+    
+    def __lt__(self, other): 
         if (isinstance(other, Param)):
             return self.data < other.data
         else :
             return self.data < other
         
-    def __le__(self,other): 
+    def __le__(self, other): 
         if (isinstance(other, Param)):
             return self.data <= other.data
         else :
             return self.data <= other
         
-    def __gt__(self,other): 
+    def __gt__(self, other): 
         if (isinstance(other, Param)):
             return self.data > other.data
         else :
             return self.data > other
         
-    def __ge__(self,other): 
+    def __ge__(self, other): 
         if (isinstance(other, Param)):
             return self.data >= other.data
         else :
             return self.data >= other
     
-    def __eq__(self,other):
+    def __eq__(self, other):
         if (isinstance(other, Param)):
             return self.data == other.data
         else :
             return self.data == other
         
-    def __ne__(self,other):
+    def __ne__(self, other):
         if (isinstance(other, Param)):
             return self.data != other.data
         else :
             return self.data != other
-
-    def print_node(self,depth=0):
-        s = ""
-        for i in range(depth):
-            s+= '\t'
-        print(s + self.__repr__() + '(')
-        for p in self.privious_node:
-            p.print_node(depth+1)
-        print(s+')')
-
-    def backward(self,grad=1):
-        for i in range(len(self.privious_node)):
-            self.privious_node[i].backward_grad += self.foward_grad[i]*grad
-            self.privious_node[i].backward(self.foward_grad[i]*grad)
-
+            
         
