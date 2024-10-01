@@ -18,7 +18,7 @@ class Param:
         self.shape = self.data.shape
         
     def __repr__(self):
-        return f"Data:{self.data}"+ (f", requrired_grad:{self.requires_grad}" if self.requires_grad else "")
+        return f"Data:{self.data}"+ (f", requires_grad:{self.requires_grad}" if self.requires_grad else "")
     
     def __len__(self):
         return self.shape[0]
