@@ -42,14 +42,14 @@ class Set(Grad):
         ret = []
         node, (other, idx) = self.saved_tensors[:-2], self.saved_tensors[-2:]
         
-        if isinstance(grad, np.ndarray):
+        if isinstance(grad, (np.ndarray, np.generic)):
             grad1 = grad.copy()
         else:
             grad1 = np.ones_like(node[0].data)*grad
         grad1[idx] = 0
         ret.extend(self.prev_fn.backward(grad1))
             
-        if isinstance(grad, np.ndarray):
+        if isinstance(grad, (np.ndarray, np.generic)):
             ret.append(grad[idx])
         else : 
             ret.append(np.ones_like(other.data)*grad)

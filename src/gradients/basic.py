@@ -122,3 +122,65 @@ class MatMul(Grad):
             grad @ node_y.data.transpose(-1, -2),
             node_x.data.transpose(-1, -2) @ grad
             )
+    
+class Sum(Grad):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def forward(x, dim, keepdim):  
+        return x.data.sum(axis=dim, keepdims=keepdim)
+
+    def backward(self, grad=1):
+        node_x, dim, keepdim = self.saved_tensors
+        if dim is not None:
+            if isinstance(dim, tuple):
+                dim = sorted(dim)
+                dim_idx = 0
+                new_shape = []
+                for i, size in enumerate(node_x.shape):
+                    if i == dim[dim_idx]:
+                        new_shape.append(1)
+                        dim_idx+=1
+                    else:
+                        new_shape.append(size)
+                grad = grad.reshape(new_shape)
+            else:
+                grad = np.expand_dims(grad, dim)
+        
+        return np.broadcast_to(grad, node_x.data.shape)
+            
+class Mean(Grad):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def forward(x, dim, keepdim):  
+        return x.data.mean(axis=dim, keepdims=keepdim)
+
+    def backward(self, grad=1):
+        node_x, dim, keepdim = self.saved_tensors
+        div = 1
+        if dim is None:
+            for size in node_x.shape:
+                div *= size
+        else:
+            if isinstance(dim, tuple):
+                dim = sorted(dim)
+                dim_idx = 0
+                new_shape = []
+
+                for i, size in enumerate(node_x.shape):
+                    if i == dim[dim_idx]:
+                        div *= node_x.shape[i]
+                        new_shape.append(1)
+                        dim_idx+=1
+                    else:
+                        new_shape.append(size)
+                grad = grad.reshape(new_shape)
+            else :
+                div = node_x.shape[dim]
+                grad = np.expand_dims(grad, dim)
+                
+            
+        return np.broadcast_to(grad, node_x.data.shape) / div
