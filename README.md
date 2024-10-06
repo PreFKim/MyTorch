@@ -14,8 +14,9 @@
 
 - [ ] Optimize the code of the Operation method in parameter.py
 - [x] Implements the array manipulation operation(ones, zeros etc...)
-- [ ] Implements the convolution layer
-- [ ] Implements the Non-Linear functions
+- [x] Implements the convolution layer
+- [x] Implements the Non-Linear functions
+- [ ] Train/inference with real dataset(Iris, MNIST)
 - [ ] Implements custom array object
 
 # How to Use
