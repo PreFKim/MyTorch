@@ -39,5 +39,5 @@ class Reshape(Grad):
     
     def backward(self, grad=1):
         node_x, shape = self.saved_tensors
-        return np.reshape(grad, node_x.shape)
+        return np.reshape(grad, node_x.data.shape)
     

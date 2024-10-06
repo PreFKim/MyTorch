@@ -135,8 +135,14 @@ class Sum(Grad):
         node_x, dim, keepdim = self.saved_tensors
         if dim is not None:
             if isinstance(dim, tuple):
+                dim = list(dim)
+                for i in range(len(dim)):
+                    if dim[i] < 0:
+                        dim[i] = len(node_x.data.shape) + dim[i]
                 dim = sorted(dim)
+                
                 dim_idx = 0
+
                 new_shape = []
                 for i, size in enumerate(node_x.shape):
                     if i == dim[dim_idx]:
@@ -144,6 +150,7 @@ class Sum(Grad):
                         dim_idx+=1
                     else:
                         new_shape.append(size)
+
                 grad = grad.reshape(new_shape)
             else:
                 grad = np.expand_dims(grad, dim)
@@ -166,7 +173,12 @@ class Mean(Grad):
                 div *= size
         else:
             if isinstance(dim, tuple):
+                dim = list(dim)
+                for i in range(len(dim)):
+                    if dim[i] < 0:
+                        dim[i] = len(node_x.data.shape) + dim[i]
                 dim = sorted(dim)
+                
                 dim_idx = 0
                 new_shape = []
 
