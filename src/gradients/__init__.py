@@ -5,3 +5,5 @@ from .basic import (
 from .index import Get, Set
 
 from .manipulate import Stack, Concat
+
+from .conv import Convolution

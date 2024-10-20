@@ -17,7 +17,11 @@ class Get(Grad):
 
 
 class Set(Grad):
-
+    # todo:
+    # y = a*x
+    # a[tmp_idx] = 5 
+    # y = y*8
+    # If the value a[tmp_idx] is setted to 5, The gradient for x is changed
     def __init__(self, prev_fn):
         super().__init__()
         self.prev_fn = prev_fn
@@ -34,9 +38,8 @@ class Set(Grad):
         else:
             self.saved_tensors = (node , other, idx)
 
-        self.node_idx = len(self.prev_fn)
-        
-    
+        self.node_idx = len(self.prev_fn)    
+
     def backward(self, grad=1):
 
         ret = []

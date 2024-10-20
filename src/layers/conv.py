@@ -1,7 +1,8 @@
 from .module import Module
-from ..parameter import Param
+from ..parameter import Param, operation
 import numpy as np
 from ..ops.manipulate import stack
+from ..gradients import Convolution
 
 class Conv1d(Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=True):
@@ -25,21 +26,4 @@ class Conv1d(Module):
             ) if bias else None
         
     def forward(self, x):
-        if len(x.shape) == 2:
-            _, l = x.shape
-            out_shape = (self.out_channels, int((l+2*self.padding-self.kernel_size)/self.stride)+1)
-        elif len(x.shape) == 3:
-            b, _, l = x.shape
-            out_shape = (b, self.out_channels, int((l+2*self.padding-self.kernel_size)/self.stride)+1)
-        else:
-            raise "Inputs shape should be 2D(Channels, Length) or 3D(Batch_size, Channels, Length)"
-        
-        ret = []
-        for c in range(self.out_channels):
-            for i in range(0, l-self.kernel_size+1, self.stride):
-                ret.append((x[..., i:i+self.kernel_size] * self.weight[c]).sum((-1, -2)) ) # (((b,) in_channels, kernel_size)* (in_channels, kernel_size)).sum(-1, -2) -> (b,)
-        
-        ret = stack(ret, -1).reshape(out_shape)
-
-        if self.bias is not None : return ret + self.bias
-        else : return ret
+        return operation(Convolution, x, self.weight, self.stride, self.padding, self.bias, convert=False)

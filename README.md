@@ -16,6 +16,7 @@
 - [x] Implements the array manipulation operation(ones, zeros etc...)
 - [x] Implements the convolution layer
 - [x] Implements the Non-Linear functions
+- [ ] Fix inplace operation (Set Method)
 - [ ] Train/inference with real dataset(Iris, MNIST)
 - [ ] Implements custom array object
 
