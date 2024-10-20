@@ -7,17 +7,16 @@ class Convolution(Grad):
 
     @staticmethod
     def forward(node, weight, stride, padding, bias):
-        b, c, l = node.shape
         
         out_channels = weight.shape[0]
         kernel_size = weight.shape[2]
-        out_length = int((l+2*padding-kernel_size)/stride)+1
+        out_length = int((node.shape[-1]+2*padding-kernel_size)/stride)+1
         if len(node.shape) == 2:
-            _, l = node.shape
+            c, l = node.shape
             out_shape = (out_channels, out_length)
             pad_width = ((0, 0), (padding, padding))
         elif len(node.shape) == 3:
-            b, _, l = node.shape
+            b, c, l = node.shape
             out_shape = (b, out_channels, out_length)
             pad_width = ((0, 0), (0, 0), (padding, padding))
         else:
@@ -31,7 +30,7 @@ class Convolution(Grad):
         ret = np.zeros(out_shape)
         for c in range(out_channels):
             for i in range(left, l+2*padding-right, stride):
-                ret[:, c, (i-left)//stride] = (node_data[..., i-left:i+right+1] * weight.data[c]).sum((-1, -2)) # batch, in_channels, kernel_size -> batch, 1, 1
+                ret[..., c, (i-left)//stride] = (node_data[..., i-left:i+right+1] * weight.data[c]).sum((-1, -2)) # batch, in_channels, kernel_size -> batch, 1, 1
         
         if bias is not None:
             ret += bias.data
@@ -58,7 +57,7 @@ class Convolution(Grad):
         left = (kernel_size-1)//2
         right = kernel_size//2
         for i in range(grad.shape[-1]):
-            grad_node[:, :, (i*stride): (i*stride)+left+right+1] += (weight.data * grad[..., np.newaxis, i:i+1]).sum(-3)
+            grad_node[..., (i*stride): (i*stride)+left+right+1] += (weight.data * grad[..., np.newaxis, i:i+1]).sum(-3)
             # grad_node -> (batch), in_channels, out_length+2*padding
             # weight -> out_channels, in_channels, kernel_size 
             # grad -> (batch), out_chennels, out_length -> indexing -> (batch), out_channels, 1, 1
