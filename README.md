@@ -20,7 +20,7 @@
 - [ ] Train/inference with real dataset(Iris, MNIST)
 - [ ] Implements custom array object
 
-# How to Use
+# Tutorial
 
 1. 깃허브를 clone한다.
 
