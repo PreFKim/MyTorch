@@ -17,98 +17,130 @@
 - [x] Implements the convolution layer
 - [x] Implements the Non-Linear functions
 - [ ] Fix inplace operation (Set Method)
-- [ ] Train/inference with real dataset(Iris, MNIST)
+- [x] Train/inference with real dataset([Boston](http://lib.stat.cmu.edu/datasets/boston), [MNIST](https://yann.lecun.com/exdb/mnist/), etc.)
 - [ ] Implements custom array object
+
+# Setup
 
 # Tutorial
 
-1. 깃허브를 clone한다.
+1. MyTorch Clone
 
     ```bash
     git clone https://github.com/PreFKim/MyTorch.git
-    pip install numpy
+    pip install numpy matplotlib
+    cd MyTorch
     ```
 
-2. clone한 디렉토리로 이동하여 src를 import해준다.
+2. 사용할 라이브러리 Import
 
     ```python
-    import src as my
     import numpy as np
+    import src as my
+    import matplotlib.pyplot as plt
+    from dataset import *
     ```
 
-3. 원하는 구조에 맞게 모델을 수정한다.(PyTorch와 형식은 비슷합니다.)
+3. 학습에 사용할 데이터셋 준비
 
     ```python
-    def relu(x):
-        x[x<0] = 0
-        return x
+    x, y = boston()
+    print(x.shape, y.shape)
 
-    class mymodel(my.layers.Module):
+    # Split
+    train_idx = []
+    test_idx =[]
+    for i in range(len(x)):
+        if i%4!=0:
+            train_idx.append(i)
+        else:
+            test_idx.append(i)
+
+    train_x = x[train_idx]
+    train_y = y[train_idx, np.newaxis]
+    test_x = x[test_idx]
+    test_y = y[test_idx, np.newaxis]
+
+    # Noramlize
+    min_val_x, max_val_x = train_x.min(0), train_x.max(0)
+    min_val_y, max_val_y = train_y.min(0), train_y.max(0)
+
+    train_x = (train_x-min_val_x)/(max_val_x-min_val_x)
+    test_x = (test_x-min_val_x)/(max_val_x-min_val_x)
+
+    train_y = (train_y-min_val_y)/(max_val_y-min_val_y)
+
+    # Wrap with Param object
+    train_x = my.Param(train_x)
+    train_y = my.Param(train_y)
+    test_x = my.Param(test_x)
+    test_y = my.Param(test_y)
+    train_x.shape, train_y.shape, test_x.shape, test_y.shape
+
+    ```
+
+4. 모델 학습 파이프라인 작성 (Pytorch와 유사한 구조)
+
+    ```python
+    class Model(my.layers.Module):
         def __init__(self):
-            self.l1 = my.layers.Linear(2,16,bias=True)
-            self.l2 = my.layers.Linear(16,16,bias=True)
-            self.l3 = my.layers.Linear(16,16,bias=True)
-            self.l4 = my.layers.Linear(16,1,bias=True)
+            self.l1 = my.layers.Linear(13, 32)
+            self.l2 = my.layers.Linear(32, 32)
+            self.l3 = my.layers.Linear(32, 32)
+            self.l4 = my.layers.Linear(32, 1)
+
+            self.activation = my.layers.ReLU()
 
         def forward(self,x):
             out = self.l1(x)
-            out = relu(out)
+            out = self.activation(out)
             out = self.l2(out)
-            out = relu(out)
+            out = self.activation(out)
             out = self.l3(out)
-            out = relu(out)
+            out = self.activation(out)
             out = self.l4(out)
             return out
 
-    ```
+    model = Model()
+    optim = my.optimizers.Adam(model.parameters(), lr=1e-3)
 
-4. Optimizer와 학습 코드를 작성한다.
+    for i in range(1000):
+        pred = model(train_x)
+        loss = ((pred - train_y)**2).mean()
+        loss.backward()
+        optim.step()
+        optim.zero_grad()
+    print(loss)
+    ```     
+
+5. 평가 및 시각화
 
     ```python
-    x = my.Param(np.stack([np.arange(100), np.arange(100)], 1))/100
-    y = my.Param(np.arange(100).reshape(-1, 1))/100
+    pred_y = model(train_x)
+    pred_y = pred_y*(max_val_y-min_val_y)+(min_val_y)
+    orig_train_y = train_y*(max_val_y-min_val_y)+(min_val_y)
+    train_mae = (abs(pred_y-orig_train_y).mean()).data
+    plt.figure(figsize=(15, 3))
+    plt.subplot(1, 2, 1)
+    plt.title(f"Boston Dataset (Train)\nMAE: {train_mae}")
+    plt.plot(orig_train_y.data, label="True")
+    plt.plot(pred_y.data, label="Pred")
+    plt.legend()
 
-    model = mymodel()
-    optim = my.optimizers.Adam(params=model.parameters(),lr=1e-3)
-    for i in range(1000):
-        out = model(x)
-        
-        loss = (out-y)**2
+    pred_y = model(test_x)
+    pred_y = pred_y*(max_val_y-min_val_y)+(min_val_y)
+    test_mae = (abs(pred_y-test_y).mean()).data
 
-        loss_mean = 0
-        for l in loss:
-            loss_mean = loss_mean + l/100
-        loss_mean.backward()
-
-        optim.update()
-        optim.zero_grad()
-        if (i%10==0):
-            print(loss_mean)  
-    model([1000,1000])
-    ```     
+    plt.subplot(1, 2, 2)
+    plt.title(f"Boston Dataset (Test)\nMAE: {test_mae}")
+    plt.plot(test_y.data, label="True")
+    plt.plot(pred_y.data, label="Pred")
+    plt.legend()
+    plt.show()
+    ```
 
 ## Result
 
-![](./imgs/Train_result.PNG)
-
-# Directory
-    MyTorch
-        │  .gitignore
-        │  README.md
-        │  test.ipynb       # 구현 실험 코드
-        │  __init__.py
-        │
-        └─src
-            │  parameter.py # Parameter 코드
-            │  ...
-            │
-            ├─gradients     # Gradient 코드
-            │  basic.py     # 기본 연산 코드
-            │  ...
-            │
-            ├─layers        # Layer 코드
-            │  module.py    # Layer Module 코드
-            │  ...
-            │
-            └─optimizers    # Optimizer 코드
-                ...
+- Boston 
+    
+    ![boston](./imgs/boston.png)
