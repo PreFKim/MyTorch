@@ -1,7 +1,7 @@
 import numpy as np
-from .gradients.basic import *
-from .gradients.index import Get, Set
-from .gradients.manipulate import Reshape
+from src.gradients.basic import *
+from src.gradients.index import Get, Set
+from src.gradients.manipulate import Reshape
 
 def operation(op, *inputs, convert = True, requires_grad=False):
     if convert:
@@ -23,11 +23,11 @@ def operation(op, *inputs, convert = True, requires_grad=False):
     return node
 
 class Param:
-    def __init__(self, data=0.0, requires_grad=False):
+    def __init__(self, data=0.0, dtype=np.float32, requires_grad=False):
         if isinstance(data, (np.ndarray, np.generic)): # Numpy Array or Numpy Scalar
-            self.data = data 
+            self.data = data.astype(dtype) 
         elif isinstance(data, (int, float, complex, list, tuple)) :
-            self.data = np.array(data)
+            self.data = np.array(data, dtype=dtype)
         else :
             raise "Not supported data type"
         
@@ -156,11 +156,11 @@ class Param:
         return operation(MatMul, other, self)
     
     def sum(self, dim=None, keepdim=False):
-        assert not (keepdim and dim is not None), "If you set keepdim to True, you should input the dim variable"
+        assert keepdim == False or (keepdim and dim is not None), "If you set keepdim to True, you should input the dim variable"
         return operation(Sum, self, dim, keepdim, convert=False)
 
     def mean(self, dim=None, keepdim=False):
-        assert not (keepdim and dim is not None), "If you set keepdim to True, you should input the dim variable"
+        assert keepdim == False or (keepdim and dim is not None), "If you set keepdim to True, you should input the dim variable"
         return operation(Mean, self, dim, keepdim, convert=False)
     
     def reshape(self, shape):

@@ -1,4 +1,4 @@
-from .grad import Grad
+from src.gradients.grad import Grad
 import numpy as np
 
 
@@ -76,8 +76,8 @@ class Pow(Grad):
     def backward(self, grad=1):
         node_x, node_y = self.saved_tensors
         return (
-            grad * (node_x.data * node_y.data ** (node_x.data-1)),
-            grad * (np.log(node_x.data) * node_x.data ** node_y.data)
+            grad * (node_y.data * node_x.data ** (node_y.data - 1)),
+            grad * (node_x.data ** node_y.data * np.log(node_x.data))
             )
 
 class Abs(Grad):
@@ -86,8 +86,7 @@ class Abs(Grad):
 
     @staticmethod
     def forward(x):
-        x.data[x.data<0] = -x.data[x.data<0]
-        return x.data
+        return np.abs(x.data)
     
     def backward(self, grad=1):
         node, = self.saved_tensors
@@ -122,7 +121,19 @@ class MatMul(Grad):
             grad @ node_y.data.transpose(-1, -2),
             node_x.data.transpose(-1, -2) @ grad
             )
-    
+
+class Log(Grad):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def forward(x):
+        return np.log(np.clip(x.data, 1e-8, np.inf))
+
+    def backward(self, grad=1):
+        node_x, = self.saved_tensors
+        return grad / node_x.data
+
 class Sum(Grad):
     def __init__(self):
         super().__init__()
@@ -133,30 +144,34 @@ class Sum(Grad):
 
     def backward(self, grad=1):
         node_x, dim, keepdim = self.saved_tensors
-        if dim is not None:
-            if isinstance(dim, tuple):
-                dim = list(dim)
-                for i in range(len(dim)):
-                    if dim[i] < 0:
-                        dim[i] = len(node_x.data.shape) + dim[i]
-                dim = sorted(dim)
-                
-                dim_idx = 0
+        input_shape = node_x.shape
 
-                new_shape = []
-                for i, size in enumerate(node_x.shape):
-                    if i == dim[dim_idx]:
-                        new_shape.append(1)
-                        dim_idx+=1
-                    else:
-                        new_shape.append(size)
+        grad = np.asarray(grad)
 
-                grad = grad.reshape(new_shape)
-            else:
-                grad = np.expand_dims(grad, dim)
-        
-        return np.broadcast_to(grad, node_x.data.shape)
-            
+        if dim is None:
+            if not keepdim:
+                grad = grad.reshape(1)
+            return np.broadcast_to(grad, input_shape)
+
+        if isinstance(dim, (int, np.integer)):
+            dim = [dim]
+        elif isinstance(dim, tuple):
+            dim = list(dim)
+
+        for i in range(len(dim)):
+            if dim[i] < 0:
+                dim[i] = len(input_shape) + dim[i]
+        dim = sorted(dim)
+
+        if not keepdim:
+            output_shape = [size for i, size in enumerate(input_shape) if i not in dim]
+            grad = grad.reshape(output_shape)
+
+            for d in dim:
+                grad = np.expand_dims(grad, d)
+
+        return np.broadcast_to(grad, input_shape)
+    
 class Mean(Grad):
     def __init__(self):
         super().__init__()
@@ -167,32 +182,36 @@ class Mean(Grad):
 
     def backward(self, grad=1):
         node_x, dim, keepdim = self.saved_tensors
-        div = 1
-        if dim is None:
-            for size in node_x.shape:
-                div *= size
-        else:
-            if isinstance(dim, tuple):
-                dim = list(dim)
-                for i in range(len(dim)):
-                    if dim[i] < 0:
-                        dim[i] = len(node_x.data.shape) + dim[i]
-                dim = sorted(dim)
-                
-                dim_idx = 0
-                new_shape = []
+        input_shape = node_x.shape
 
-                for i, size in enumerate(node_x.shape):
-                    if i == dim[dim_idx]:
-                        div *= node_x.shape[i]
-                        new_shape.append(1)
-                        dim_idx+=1
-                    else:
-                        new_shape.append(size)
-                grad = grad.reshape(new_shape)
-            else :
-                div = node_x.shape[dim]
-                grad = np.expand_dims(grad, dim)
-                
-            
-        return np.broadcast_to(grad, node_x.data.shape) / div
+        grad = np.asarray(grad)
+
+        if dim is None:
+            div = np.prod(input_shape)
+            if not keepdim:
+                grad = grad.reshape(1)
+            return np.broadcast_to(grad, input_shape) / div
+
+        if isinstance(dim, (int, np.integer)):
+            dim = [dim]
+        elif isinstance(dim, tuple):
+            dim = list(dim)
+
+        for i in range(len(dim)):
+            if dim[i] < 0:
+                dim[i] = len(input_shape) + dim[i]
+        dim = sorted(dim)
+        
+        div = np.prod([input_shape[i] for i in dim])
+
+        if not keepdim:
+            # Calculate output shape
+            output_shape = [size for i, size in enumerate(input_shape) if i not in dim]
+            grad = grad.reshape(output_shape)
+
+        if not keepdim:
+            for d in dim:
+                grad = np.expand_dims(grad, d)
+
+        return np.broadcast_to(grad, input_shape) / div
+    
