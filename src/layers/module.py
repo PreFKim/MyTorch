@@ -1,4 +1,4 @@
-from ..parameter import Param
+from src.parameter import Param
 
 class Module:
     def __call__(self,x):

@@ -1,4 +1,4 @@
-from .grad import Grad
+from src.gradients.grad import Grad
 import numpy as np
 
 class Get(Grad):
