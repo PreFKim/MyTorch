@@ -18,9 +18,15 @@
 - [x] Implements the Non-Linear functions
 - [ ] Fix inplace operation (Set Method)
 - [x] Train/inference with real dataset([Boston](http://lib.stat.cmu.edu/datasets/boston), [MNIST](https://yann.lecun.com/exdb/mnist/), etc.)
+- [ ] Optimize the speed of convolution operation
 - [ ] Implements custom array object
 
-# Setup
+## Result
+
+- Boston 
+    
+    ![boston](./imgs/boston.png)
+
 
 # Tutorial
 
@@ -138,9 +144,3 @@
     plt.legend()
     plt.show()
     ```
-
-## Result
-
-- Boston 
-    
-    ![boston](./imgs/boston.png)
