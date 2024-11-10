@@ -1,152 +1,147 @@
-from src.gradients.grad import Grad
+from src.gradients.grad import Function, unbroadcast
 import numpy as np
 
 
-class Add(Grad):
-    def __init__(self):
-        super().__init__()
+class Add(Function):
+    @staticmethod
+    def forward(ctx, node_x, node_y):
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data + node_y.data
 
     @staticmethod
-    def forward(x, y):
-        return x.data + y.data
-    
-    def backward(self, grad=1):
-        return grad, grad
+    def backward(ctx, grad=1):
+        node_x, node_y = ctx.saved_tensors
+        grad_x = unbroadcast(grad, node_x.shape)
+        grad_y = unbroadcast(grad, node_y.shape)
+        return grad_x, grad_y
 
-class Sub(Grad):
-    def __init__(self):
-        super().__init__()
+class Sub(Function):
+    @staticmethod
+    def forward(ctx, node_x, node_y):
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data - node_y.data
 
     @staticmethod
-    def forward(x, y):
-        return x.data - y.data
-    
-    def backward(self, grad=1):
-        return grad, -grad
+    def backward(ctx, grad=1):
+        node_x, node_y = ctx.saved_tensors
+        grad_x = unbroadcast(grad, node_x.shape)
+        grad_y = unbroadcast(grad, node_y.shape)
+        return grad_x, -grad_y
 
 
-class Mul(Grad):
-    def __init__(self):
-        super().__init__()
+class Mul(Function):
+    @staticmethod
+    def forward(ctx, node_x, node_y):
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data * node_y.data
 
     @staticmethod
-    def forward(x, y):
-        return x.data * y.data
-    
-    def backward(self, grad=1):
-        node_x, node_y = self.saved_tensors
-        return (
-            grad * node_y.data, 
-            grad * node_x.data
-            )
+    def backward(ctx, grad=1):
+        node_x, node_y = ctx.saved_tensors
+        grad_x = unbroadcast(grad * node_y.data, node_x.shape)
+        grad_y = unbroadcast(grad * node_x.data, node_y.shape)
+        return grad_x, grad_y
 
-class Div(Grad):
-    def __init__(self):
-        super().__init__()
+class Div(Function):
+    @staticmethod
+    def forward(ctx, node_x, node_y):
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data / node_y.data
 
     @staticmethod
-    def forward(x, y):
-        return x.data / y.data
-    
-    def backward(self, grad=1):
-        node_x, node_y = self.saved_tensors
-        return (
-            grad * (1 / node_y.data), 
-            grad * -(node_x.data / (node_y.data)**2)
-            )   
+    def backward(ctx, grad=1):
+        node_x, node_y = ctx.saved_tensors
+        grad_x = unbroadcast(grad * (1 / node_y.data), node_x.shape)
+        grad_y = unbroadcast(grad * -(node_x.data / (node_y.data)**2), node_y.shape)
+        return grad_x, grad_y
 
-class FloorDiv(Grad):
+class FloorDiv(Function):
     @staticmethod
-    def forward(x, y):
-        return x.data // y.data
+    def forward(ctx, node_x, node_y):
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data // node_y.data
 
-class Mod(Grad):
+class Mod(Function):
     @staticmethod
-    def forward(x, y):
-        return x.data % y.data
+    def forward(ctx, node_x, node_y):
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data % node_y.data
 
-class Pow(Grad):
-    def __init__(self):
-        super().__init__()
-
+class Pow(Function):
     @staticmethod
-    def forward(x, y):
-        return x.data ** y.data
-    
-    def backward(self, grad=1):
-        node_x, node_y = self.saved_tensors
-        return (
-            grad * (node_y.data * node_x.data ** (node_y.data - 1)),
-            grad * (node_x.data ** node_y.data * np.log(node_x.data))
-            )
-
-class Abs(Grad):
-    def __init__(self):
-        super().__init__()
+    def forward(ctx, node_x, node_y):
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data ** node_y.data
 
     @staticmethod
-    def forward(x):
-        return np.abs(x.data)
-    
-    def backward(self, grad=1):
-        node, = self.saved_tensors
+    def backward(ctx, grad=1):
+        node_x, node_y = ctx.saved_tensors
+        grad_x = unbroadcast(grad * (node_y.data * node_x.data ** (node_y.data - 1)), node_x.shape)
+        grad_y = unbroadcast(grad * (node_x.data ** node_y.data * np.log(node_x.data)), node_y.shape)
+        return grad_x, grad_y
 
+class Abs(Function):
+    @staticmethod
+    def forward(ctx, node_x):
+        ctx.saved_for_backward(node_x)
+        return np.abs(node_x.data)
+
+    @staticmethod
+    def backward(ctx, grad=1):
+        node, = ctx.saved_tensors
         ret = grad.copy()
         ret[node.data<0] = -ret[node.data<0]
-
         return ret
     
-class Neg(Grad):
-    def __init__(self):
-        super().__init__()
+class Neg(Function):
+    @staticmethod
+    def forward(ctx, node_x):
+        ctx.saved_for_backward(node_x)
+        return -node_x.data
 
     @staticmethod
-    def forward(x):
-        return -x.data
-    
-    def backward(self, grad=1):
+    def backward(ctx, grad=1):
         return -grad
 
-class MatMul(Grad):
-    def __init__(self):
-        super().__init__()
+class MatMul(Function):
+    @staticmethod
+    def forward(ctx, node_x, node_y):  
+        ctx.saved_for_backward(node_x, node_y)
+        return node_x.data @ node_y.data  
 
     @staticmethod
-    def forward(x, y):  
-        return x.data @ y.data  
+    def backward(ctx, grad=1):
+        node_x, node_y = ctx.saved_tensors
+        grad_x = unbroadcast(grad @ node_y.data.transpose(-1, -2), node_x.shape)
+        grad_y = unbroadcast(node_x.data.transpose(-1, -2) @ grad, node_y.shape)
+        return grad_x, grad_y
 
-    def backward(self, grad=1):
-        node_x, node_y = self.saved_tensors
-        return (
-            grad @ node_y.data.transpose(-1, -2),
-            node_x.data.transpose(-1, -2) @ grad
-            )
-
-class Log(Grad):
-    def __init__(self):
-        super().__init__()
+class Log(Function):
+    @staticmethod
+    def forward(ctx, node_x):
+        ctx.saved_for_backward(node_x)
+        return np.log(np.clip(node_x.data, 1e-8, np.inf))
 
     @staticmethod
-    def forward(x):
-        return np.log(np.clip(x.data, 1e-8, np.inf))
-
-    def backward(self, grad=1):
-        node_x, = self.saved_tensors
+    def backward(ctx, grad=1):
+        node_x, = ctx.saved_tensors
         return grad / node_x.data
 
-class Sum(Grad):
-    def __init__(self):
-        super().__init__()
+class Sum(Function):
+    @staticmethod
+    def forward(ctx, node_x, dim, keepdim):  
+        ctx.saved_for_backward(node_x)
+        ctx.dim = dim
+        ctx.keepdim = keepdim
+        return node_x.data.sum(axis=dim, keepdims=keepdim)
 
     @staticmethod
-    def forward(x, dim, keepdim):  
-        return x.data.sum(axis=dim, keepdims=keepdim)
+    def backward(ctx, grad=1):
+        node_x, = ctx.saved_tensors
+        dim = ctx.dim
+        keepdim = ctx.keepdim
 
-    def backward(self, grad=1):
-        node_x, dim, keepdim = self.saved_tensors
         input_shape = node_x.shape
-
-        grad = np.asarray(grad)
 
         if dim is None:
             if not keepdim:
@@ -172,19 +167,21 @@ class Sum(Grad):
 
         return np.broadcast_to(grad, input_shape)
     
-class Mean(Grad):
-    def __init__(self):
-        super().__init__()
+class Mean(Function):
+    @staticmethod
+    def forward(ctx, node_x, dim, keepdim):  
+        ctx.saved_for_backward(node_x)
+        ctx.dim = dim
+        ctx.keepdim = keepdim
+        return node_x.data.mean(axis=dim, keepdims=keepdim)
 
     @staticmethod
-    def forward(x, dim, keepdim):  
-        return x.data.mean(axis=dim, keepdims=keepdim)
+    def backward(ctx, grad=1):
+        node_x, = ctx.saved_tensors
+        dim = ctx.dim
+        keepdim = ctx.keepdim
 
-    def backward(self, grad=1):
-        node_x, dim, keepdim = self.saved_tensors
         input_shape = node_x.shape
-
-        grad = np.asarray(grad)
 
         if dim is None:
             div = np.prod(input_shape)

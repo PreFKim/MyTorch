@@ -1,13 +1,14 @@
-from src.gradients.grad import Grad
+from src.gradients.grad import Function, unbroadcast
 import numpy as np
 
-class Convolution(Grad):
-    def __init__(self):
-        super().__init__()
-
+class Convolution(Function):
     @staticmethod
-    def forward(node, weight, stride, padding, bias):
+    def forward(ctx, node, weight, stride, padding, bias):
         # weight.shape -> out_channels, in_channels, ... (nd)
+        ctx.saved_for_backward(node, weight, bias)
+        ctx.stride = stride
+        ctx.padding = padding
+
         kernel_size = weight.shape[2:]
 
         if len(node.shape) == len(weight.shape)-1 : 
@@ -17,7 +18,7 @@ class Convolution(Grad):
             out_shape = [node.shape[0], weight.shape[0]] + [int((node.shape[2+i]+2*p-k)/s)+1 for i, (k, s, p) in enumerate(zip(kernel_size, stride, padding))]
             pad_width = [(0, 0), (0, 0)] +  [(p, p) for p in padding]
         else :
-            raise f"Inputs shape should be {len(weight.shape)-1}D(Channels, ...) or {len(weight.shape)}D(Batch_size, Channels, ..)"
+            raise ValueError(f"Inputs shape should be {len(weight.shape)-1}D(Channels, ...) or {len(weight.shape)}D(Batch_size, Channels, ..)")
             
         node_data = np.pad(node.data, pad_width=pad_width)
 
@@ -26,15 +27,18 @@ class Convolution(Grad):
         elif len(weight.shape) == 4: # Conv2d
             ret = Conv2d_forward(node_data, weight, out_shape, stride)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Conv{len(weight.shape)-2}d operation is not implemented")
 
         if bias is not None:
             ret += bias.data
         return ret
     
-    def backward(self, grad=1):
+    @staticmethod
+    def backward(ctx, grad=1):
         # grad shape: out_shape((b) c, l)
-        node, weight, stride, padding, bias = self.saved_tensors    
+        node, weight, bias = ctx.saved_tensors    
+        stride = ctx.stride
+        padding = ctx.padding
 
         if len(node.shape) == len(weight.shape) -1:
             batch_first = False
@@ -50,9 +54,12 @@ class Convolution(Grad):
         elif len(weight.shape) == 4: # Conv2d
             grad_node, grad_weight = Conv2d_backward(node_data, weight, grad, stride, padding, batch_first)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Conv{len(weight.shape)-2}d operation is not implemented")
 
-        return grad_node, grad_weight, grad if bias is not None else None
+        grad_node = unbroadcast(grad_node, node.shape)
+        grad_weight = unbroadcast(grad_weight, weight.shape)
+        grad_bias = unbroadcast(grad, bias.shape)
+        return grad_node, grad_weight, grad_bias if bias is not None else None
 
 def Conv1d_forward(data, weight, out_shape, stride):
     out_channels, in_channels, *kernel_size = weight.shape

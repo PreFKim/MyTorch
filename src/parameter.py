@@ -1,105 +1,90 @@
 import numpy as np
+from src.gradients.grad import GradFunction, ContextManager, Accumulate
 from src.gradients.basic import *
-from src.gradients.index import Get, Set
+from src.gradients.index import Get
 from src.gradients.manipulate import Reshape
 
-def operation(op, *inputs, convert = True, requires_grad=False):
-    if convert:
+def operation(op, *inputs, convert = True): # role for torch.autograd.Function().apply()
+    requires_grad = False
+    next_functions = []
+    ctx = ContextManager()
+
+    if convert: # tuple -> list for writable(wraping)
         inputs = list(inputs)
+
     for i in range(len(inputs)):
-        flag = isinstance(inputs[i], Param)
-        if convert:
-            inputs[i] = inputs[i] if flag else Param(inputs[i])
-        if flag:
-            requires_grad = requires_grad or inputs[i].requires_grad
-    
-    node = Param(op.forward(*inputs), requires_grad=requires_grad)
+        if isinstance(inputs[i], Param)==False and convert:
+            inputs[i] = Param(inputs[i])
+
+        if isinstance(inputs[i], Param):
+            grad_fn = None
+            if inputs[i].requires_grad:
+                requires_grad = True
+                if inputs[i].is_leaf:
+                    grad_fn = Accumulate(inputs[i])
+                else:
+                    grad_fn = inputs[i].grad_fn # None or GradFn
+            next_functions.append(grad_fn)
+
+    node = Param(op.forward(ctx, *inputs), requires_grad=requires_grad)
     node.is_leaf = False
 
     if requires_grad:
-        node.grad_fn = op()
-        node.grad_fn.saved_for_backward(*inputs)
+        node.grad_fn = GradFunction(op, ctx, next_functions)
 
     return node
 
 class Param:
-    def __init__(self, data=0.0, dtype=np.float32, requires_grad=False):
+    def __init__(self, data, dtype=np.float32, requires_grad=False):
         if isinstance(data, (np.ndarray, np.generic)): # Numpy Array or Numpy Scalar
             self.data = data.astype(dtype) 
         elif isinstance(data, (int, float, complex, list, tuple)) :
             self.data = np.array(data, dtype=dtype)
         else :
-            raise "Not supported data type"
+            raise ValueError("Not supported data type")
         
         self.grad = None
         self.grad_fn = None
         self.requires_grad = requires_grad
         self.is_leaf = True
-        self.shape = self.data.shape
-        self.dtype = self.data.dtype
-    
+
     def __repr__(self):
         return f"Data:{self.data}"+ (f", requrired_grad:{self.requires_grad}" if self.requires_grad else "")
     
     def __len__(self):
         return self.shape[0]
     
+    @property
+    def shape(self):
+        return self.data.shape
+    
+    @property
+    def dtype(self):
+        return self.data.dtype
+    
     def backward(self, grad=1):
-
-        if self.requires_grad:
+        if self.grad_fn is not None:
             if not isinstance(grad, (np.ndarray, np.generic)) :
                 grad = np.ones_like(self.data) * grad
-            
-            if grad.shape != self.shape:
-                # Un broadcasting
-                ln_grad = len(grad.shape)
-                ln_self = len(self.shape)
-                
-                grad = grad.sum(tuple(range(ln_grad-ln_self)))
-                
-                dims = []
-                for i in range(ln_self):
-                    if self.shape[i]==1 and grad.shape[i]:
-                        dims.append(i)
-                grad = grad.sum(tuple(dims), keepdims=True)
+            self.grad_fn.backward(grad)
 
-            if self.grad_fn is not None:                
-                calc_grads = self.grad_fn.backward(grad)
-
-                if not isinstance(calc_grads, (tuple, list)):
-                    calc_grads = [calc_grads]
-
-                grad_idx = 0
-                for i in range(len(self.grad_fn)):
-                    prev_node = self.grad_fn.saved_tensors[i]
-                    if isinstance(prev_node, list): # For Stack, Concat Operation
-                        for node in prev_node:
-                            if isinstance(node, Param):
-                                node.backward(calc_grads[grad_idx])
-                                grad_idx += 1
-                    elif isinstance(prev_node, Param):
-                        prev_node.backward(calc_grads[grad_idx])
-                        grad_idx += 1
-                
-            elif self.is_leaf:
-                self.grad = self.grad + grad if self.grad is not None else grad
-    
     def __getitem__(self, idx):
         return operation(Get, self, idx, convert=False)
         
 
     def __setitem__(self, idx, value):
-        value = value if isinstance(value, Param) else Param(value)
+        raise NotImplementedError("Set Method is not implemented")
+    #     value = value if isinstance(value, Param) else Param(value)
 
-        if self.is_leaf and self.requires_grad:
-            raise "IDK, But Pytorch denied this condition"
+    #     if self.is_leaf and self.requires_grad:
+    #         raise RuntimeError("IDK, But Pytorch denied this condition")
         
-        self.data = Set.forward(self, value, idx)
-        self.requires_grad=self.requires_grad or value.requires_grad
+    #     self.data = Set.forward(self, value, idx)
+    #     self.requires_grad=self.requires_grad or value.requires_grad
         
-        if self.requires_grad:
-            self.grad_fn = Set(self.grad_fn)
-            self.grad_fn.saved_for_backward(self, value, idx)
+    #     if self.requires_grad:
+    #         self.grad_fn = Set(self.grad_fn)
+    #         self.grad_fn.saved_for_backward(self, value, idx)
 
     def __add__(self, other):
         return operation(Add, self, other)

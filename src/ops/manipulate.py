@@ -3,16 +3,10 @@ from src.gradients.manipulate import Stack, Concat, Max, Min
 import numpy as np
 
 def stack(nodes, dim=-1):
-    requires_grad = False
-    for node in nodes:
-        requires_grad = requires_grad or node.requires_grad
-    return operation(Stack, nodes, dim, convert=False, requires_grad=requires_grad)
+    return operation(Stack, *nodes, dim, convert=False)
 
 def concat(nodes, dim=-1):
-    requires_grad = False
-    for node in nodes:
-        requires_grad = requires_grad or node.requires_grad
-    return operation(Concat, nodes, dim, convert=False, requires_grad=requires_grad)
+    return operation(Concat, *nodes, dim, convert=False)
 
 def zeros(shape, requires_grad=False):
     return Param(np.zeros(shape, dtype=np.float32), requires_grad=requires_grad)
