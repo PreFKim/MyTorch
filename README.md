@@ -12,6 +12,7 @@
 
 # Todo
 
+- [x] Optimize the code of the Operation method in parameter.py
 - [x] Implements the array manipulation operation(ones, zeros etc...)
 - [x] Implements the convolution layer
 - [x] Implements the Non-Linear functions
