@@ -16,7 +16,7 @@
 - [x] Implements the array manipulation operation(ones, zeros etc...)
 - [x] Implements the convolution layer
 - [x] Implements the Non-Linear functions
-- [ ] Fix inplace operation (Set Method)
+- [x] Fix inplace operation (Set Method)
 - [x] Train/inference with real dataset([Boston](http://lib.stat.cmu.edu/datasets/boston), [MNIST](https://yann.lecun.com/exdb/mnist/), etc.)
 - [ ] Optimize the speed of convolution operation
 - [ ] Implements custom array object
@@ -34,7 +34,7 @@
 
     ```bash
     git clone https://github.com/PreFKim/MyTorch.git
-    pip install numpy matplotlib
+    pip install numpy matplotlib pytorch
     cd MyTorch
     ```
 

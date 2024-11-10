@@ -7,6 +7,7 @@ def unbroadcast(grad, shape):
         grad = grad.sum(tuple(i for i in range(len(shape)) if shape[i] != grad.shape[i]), keepdims=True)
     return grad
 
+
 class Function: # Role for torch.autograd.Function
     @staticmethod
     def forward(ctx, *args, **kwargs):
@@ -26,18 +27,26 @@ class Accumulate:
 class ContextManager:
     def __init__(self):
         self.saved_tensors = []
+        self.saved_versions = []
 
     def saved_for_backward(self, *nodes):
         self.saved_tensors = nodes
+        self.saved_versions = [node._version for node in nodes]
 
 class GradFunction:
     def __init__(self, op, ctx, next_functions):
         self.ctx = ctx
         self.op = op
         self.next_functions = next_functions
-    
 
     def backward(self, grad=1):
+        for init_version, node in zip(self.ctx.saved_versions, self.ctx.saved_tensors):
+            if init_version != node._version:
+                raise RuntimeError(
+                        "One of the differentiated Node appears to have been "
+                        "modified in-place since being used for gradient computation."
+                    )
+            
         calc_grads = self.op.backward(self.ctx, grad)
         if not isinstance(calc_grads, (tuple, list)):
             calc_grads = [calc_grads]
