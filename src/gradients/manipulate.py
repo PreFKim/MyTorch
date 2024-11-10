@@ -5,14 +5,14 @@ class Stack(Function):
     @staticmethod
     def forward(ctx, *inputs):
         *nodes, dim = inputs
-        ctx.saved_for_backward(nodes)
+        ctx.saved_for_backward(*nodes)
         ctx.dim = dim
         datas = [node.data for node in nodes]
         return np.stack(datas, dim)
     
     @staticmethod
     def backward(ctx, grad=1):
-        nodes, = ctx.saved_tensors
+        nodes = ctx.saved_tensors
         dim = ctx.dim
         ret = [np.take(grad, indices=i, axis=dim) for i in range(len(nodes))]
         return ret
@@ -21,14 +21,14 @@ class Concat(Function):
     @staticmethod
     def forward(ctx, *inputs):
         *nodes, dim = inputs
-        ctx.saved_for_backward(nodes)
+        ctx.saved_for_backward(*nodes)
         ctx.dim = dim
         datas = [node.data for node in nodes]
         return np.concatenate(datas, dim)
     
     @staticmethod
     def backward(ctx, grad=1):
-        nodes, = ctx.saved_tensors
+        nodes = ctx.saved_tensors
         dim = ctx.dim
         ret = [np.take(grad, indices=[i], axis=dim) for i in range(len(nodes))]
         return ret
