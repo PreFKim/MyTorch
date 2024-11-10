@@ -8,10 +8,10 @@ def _2tuple(value, n=1):
         return tuple(value for _ in range(n))
     elif isinstance(value, (tuple, list)):
         if len(value) != n:
-            raise "len(value) != n"
+            raise ValueError("len(value) != n")
         return tuple(value)
     else: 
-        raise "Value type should be int, tuple, list"
+        raise ValueError("Value type should be int, tuple, list")
 
 class Convnd(Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, bias=True, n=1):
