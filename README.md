@@ -27,6 +27,9 @@
     
     ![boston](./imgs/boston.png)
 
+- MNIST
+
+    ![mnist](./imgs/mnist.png)
 
 # Tutorial
 
